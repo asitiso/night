@@ -12,9 +12,9 @@ let clockGain: GainNode | null = null;
 let windGain: GainNode | null = null;
 let melodyFilter: BiquadFilterNode | null = null;
 
-const SCALE = [0, 2, 3, 5, 7, 8, 10];
-const PHRASE = [0, 2, 4, 6, 4, 2, 3, 0, 5, 4, 2, 0, 4, 6, 5, -1];
-const ROOTS = [0, 4, 5, 4];
+const SCALE = [0, 1, 3, 5, 6, 8, 10];
+const PHRASE = [0, 6, 0, 5, 0, 6, 1, -1, 0, 3, 6, 0, 5, 1, 6, -1];
+const ROOTS = [0, 6, 3, 5];
 
 type Mood = {
   cutoff: number;
@@ -26,16 +26,16 @@ type Mood = {
 };
 
 const MOODS: Record<string, Mood> = {
-  parlor: { cutoff: 1500, melody: 0.09, clock: 0.03, wind: 0.012, fifth: false, drop: 0 },
-  library: { cutoff: 1100, melody: 0.075, clock: 0.02, wind: 0.008, fifth: false, drop: 0 },
-  greenhouse: { cutoff: 1900, melody: 0.08, clock: 0.015, wind: 0.022, fifth: false, drop: 0 },
-  banquet: { cutoff: 1300, melody: 0.095, clock: 0.025, wind: 0.01, fifth: false, drop: 0 },
-  gallery: { cutoff: 1000, melody: 0.065, clock: 0.018, wind: 0.008, fifth: false, drop: 0 },
-  bedroom: { cutoff: 860, melody: 0.055, clock: 0.012, wind: 0.006, fifth: false, drop: 0 },
-  cellar: { cutoff: 680, melody: 0.07, clock: 0.028, wind: 0.02, fifth: false, drop: -1 },
-  chapel: { cutoff: 1700, melody: 0.08, clock: 0.016, wind: 0.012, fifth: true, drop: 0 },
-  vault: { cutoff: 900, melody: 0.06, clock: 0.05, wind: 0.008, fifth: false, drop: 0 },
-  tower: { cutoff: 1600, melody: 0.09, clock: 0.07, wind: 0.014, fifth: true, drop: 0 },
+  parlor: { cutoff: 980, melody: 0.11, clock: 0.05, wind: 0.02, fifth: true, drop: 0 },
+  library: { cutoff: 820, melody: 0.1, clock: 0.045, wind: 0.016, fifth: true, drop: 0 },
+  greenhouse: { cutoff: 1100, melody: 0.1, clock: 0.04, wind: 0.028, fifth: true, drop: 0 },
+  banquet: { cutoff: 900, melody: 0.11, clock: 0.05, wind: 0.018, fifth: true, drop: 0 },
+  gallery: { cutoff: 760, melody: 0.09, clock: 0.055, wind: 0.014, fifth: true, drop: 0 },
+  bedroom: { cutoff: 680, melody: 0.08, clock: 0.04, wind: 0.012, fifth: true, drop: -1 },
+  cellar: { cutoff: 560, melody: 0.1, clock: 0.06, wind: 0.03, fifth: true, drop: -1 },
+  chapel: { cutoff: 1040, melody: 0.1, clock: 0.05, wind: 0.02, fifth: true, drop: 0 },
+  vault: { cutoff: 640, melody: 0.09, clock: 0.08, wind: 0.016, fifth: true, drop: -1 },
+  tower: { cutoff: 1200, melody: 0.12, clock: 0.09, wind: 0.022, fifth: true, drop: 0 },
 };
 
 function mood(): Mood {
@@ -87,27 +87,34 @@ function clockTick(when: number) {
   };
 }
 
+function heartbeat(when: number) {
+  if (!music) return;
+  voice(49, when, 0.16, 0.42, "sine", music);
+  voice(42, when + 0.16, 0.2, 0.28, "sine", music);
+}
+
 function pump() {
   if (!ctx || !melodyFilter || !music || !scoreLive()) return;
-  const horizon = ctx.currentTime + 1.4;
+  const horizon = ctx.currentTime + 1.2;
   while (nextAt < horizon) {
     const here = mood();
     const index = PHRASE[step % PHRASE.length];
     if (index >= 0) {
       const freq = noteFreq(index, here.drop);
-      voice(freq, nextAt, 1.7, 0.55, "sine", melodyFilter);
-      voice(freq * 2, nextAt, 1.15, 0.12, "triangle", melodyFilter);
-      if (here.fifth) voice(freq * 1.5, nextAt + 0.03, 1.5, 0.22, "sine", melodyFilter);
+      voice(freq, nextAt, 0.72, 0.42, "triangle", melodyFilter);
+      voice(freq * 1.498, nextAt + 0.02, 0.55, 0.16, "sine", melodyFilter);
+      if (here.fifth) voice(freq * 1.059, nextAt, 0.4, 0.1, "sawtooth", melodyFilter);
     }
-    if (step % 8 === 0) {
-      const root = noteFreq(ROOTS[(step / 8) % ROOTS.length], -1);
-      voice(root, nextAt, 3.4, 0.22, "sine", music);
+    if (step % 4 === 0) {
+      const root = noteFreq(ROOTS[(step / 4) % ROOTS.length], -1);
+      voice(root, nextAt, 1.6, 0.2, "sine", music);
+      heartbeat(nextAt);
     }
-    if (step % 8 === 4) clockTick(nextAt);
-    nextAt += here.drop < 0 ? 0.98 : 0.84;
+    if (step % 2 === 0) clockTick(nextAt);
+    nextAt += here.drop < 0 ? 0.62 : 0.5;
     step += 1;
   }
-  pumpTimer = window.setTimeout(pump, 360);
+  pumpTimer = window.setTimeout(pump, 280);
 }
 
 function scoreLive() {
@@ -158,19 +165,19 @@ export function startDrone() {
   drone.gain.value = 0.8;
   const tremolo = ctx.createOscillator();
   const tremoloDepth = ctx.createGain();
-  tremolo.frequency.value = 0.07;
-  tremoloDepth.gain.value = 0.12;
+  tremolo.frequency.value = 3.4;
+  tremoloDepth.gain.value = 0.22;
   tremolo.connect(tremoloDepth);
   tremoloDepth.connect(drone.gain);
   tremolo.start();
   drone.connect(music);
-  [73.42, 110, 174.61].forEach((freq, index) => {
+  [73.42, 77.78, 110, 155.56].forEach((freq, index) => {
     const osc = ctx!.createOscillator();
     const gain = ctx!.createGain();
-    osc.type = "sine";
+    osc.type = index === 3 ? "sawtooth" : "sine";
     osc.frequency.value = freq;
-    osc.detune.value = index === 1 ? 6 : -4;
-    gain.gain.value = index === 0 ? 0.045 : 0.026;
+    osc.detune.value = index === 1 ? 8 : -6;
+    gain.gain.value = index === 0 ? 0.05 : index === 3 ? 0.008 : 0.028;
     osc.connect(gain);
     gain.connect(drone);
     osc.start();

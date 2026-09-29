@@ -121,61 +121,70 @@ export type RoomDef = {
 
 export const ITEMS: Record<
   ItemId,
-  { name: string; take: string; place: string; blurb: string }
+  { name: string; take: string; place: string; blurb: string; art: string }
 > = {
   wax: {
     name: "밀랍 인장",
     take: "밀랍 인장을 집어 들었다.",
     place: "밀랍 인장이 홈에 맞물렸다.",
     blurb: "아직 온기가 남은 밀랍. 응접실의 불꽃이 남긴 표식.",
+    art: "/art/relic-wax.jpg",
   },
   cog: {
     name: "은빛 톱니",
     take: "은빛 톱니를 집어 들었다.",
     place: "은빛 톱니가 홈에 맞물렸다.",
     blurb: "손바닥보다 작은 톱니. 서가가 삼키고 있던 시간.",
+    art: "/art/relic-cog.jpg",
   },
   emerald: {
     name: "에메랄드 파편",
     take: "에메랄드 파편을 집어 들었다.",
     place: "에메랄드 파편이 홈에 맞물렸다.",
     blurb: "분수 바닥의 빛. 차갑고, 이상하게 무겁다.",
+    art: "/art/relic-emerald.jpg",
   },
   cuff: {
     name: "루비 커프",
     take: "루비 커프를 집어 들었다.",
     place: "루비 커프가 홈에 닿지 않는다. 이것은 표식일 뿐이다.",
     blurb: "식탁 아래 굴러 있던 커프. 잔이 기억하는 밤.",
+    art: "/art/relic-cuff.jpg",
   },
   locket: {
     name: "금테 로켓",
     take: "금테 로켓을 집어 들었다.",
     place: "로켓은 세 기둥의 홈에 맞지 않는다.",
     blurb: "열리지 않는 로켓. 네 얼굴의 순서를 안에 가두고 있다.",
+    art: "/art/relic-locket.jpg",
   },
   pearl: {
     name: "달의 진주",
     take: "달의 진주를 집어 들었다.",
     place: "진주는 홈을 거부한다.",
     blurb: "창에 걸린 달빛이 굳은 것. 손끝에서 차갑다.",
+    art: "/art/relic-pearl.jpg",
   },
   amber: {
     name: "호박 마개",
     take: "호박 마개를 집어 들었다.",
     place: "마개는 이 홈의 것이 아니다.",
     blurb: "오래된 병의 입. 안에 남은 것은 빛뿐이다.",
+    art: "/art/relic-amber.jpg",
   },
   shard: {
     name: "성창 파편",
     take: "성창 파편을 집어 들었다.",
     place: "파편은 세 기둥의 홈에 들어가지 않는다.",
     blurb: "피, 황금, 하늘, 어둠이 한 점에 굳어 있다.",
+    art: "/art/relic-shard.jpg",
   },
   sigil: {
     name: "흑요석 인장",
     take: "흑요석 인장을 집어 들었다.",
     place: "흑요석은 밀랍의 자리를 탐하지 않는다.",
     blurb: "금고가 마지막으로 내어 준 표식. 유난히 무겁다.",
+    art: "/art/relic-sigil.jpg",
   },
 };
 

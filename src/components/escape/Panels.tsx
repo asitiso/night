@@ -268,9 +268,9 @@ function TakeItem({
   return (
     <div className="stack">
       <div className="take-hero">
-        <RelicGlyph id={item} className="take-glyph" />
+        {ready || owned ? <img src={ITEMS[item].art} alt="" className="take-photo" /> : <RelicGlyph id={item} className="take-glyph" />}
       </div>
-      <p className="prose">{owned ? "이미 비어 있다." : ready ? readyText : locked}</p>
+      {owned ? null : <p className="prose">{ready ? readyText : locked}</p>}
       {ready && !owned ? (
         <button type="button" className="btn btn-gold" data-take={item} onClick={() => dispatch({ type: "take", item })}>
           집어 든다

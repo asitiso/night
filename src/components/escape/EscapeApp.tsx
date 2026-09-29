@@ -46,6 +46,7 @@ export function EscapeApp() {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const dragRef = useRef({ id: -1, x: 0, y: 0, ox: 0, oy: 0, moved: false });
   const panMoved = useRef(false);
+  const closeTimer = useRef(0);
   stateRef.current = state;
 
   const room = ROOMS[state.room] ?? ROOMS[0];
@@ -53,6 +54,7 @@ export function EscapeApp() {
   useEffect(() => {
     setState(loadState());
     setHydrated(true);
+    return () => window.clearTimeout(closeTimer.current);
   }, []);
 
   useEffect(() => {
@@ -142,6 +144,8 @@ export function EscapeApp() {
     if (result.fx === "success" || result.fx === "take") {
       if (result.fx === "success") audio.playSuccess();
       else audio.playTake();
+      window.clearTimeout(closeTimer.current);
+      closeTimer.current = window.setTimeout(() => setPanel(null), result.fx === "take" ? 280 : 520);
       setBurst((value) => value + 1);
     }
     if (result.fx === "advance") {
@@ -167,10 +171,12 @@ export function EscapeApp() {
 
   function onHotspot(spot: Hotspot) {
     if (curtainRef.current || panMoved.current) return;
+    window.clearTimeout(closeTimer.current);
     if (spot.action === "door") {
       dispatch({ type: "next" });
       return;
     }
+    if (spot.action === "take" && room?.relic && stateRef.current.inventory.includes(room.relic)) return;
     if (spot.action === "clue" && spot.clue) dispatch({ type: "clue", id: spot.clue });
     setPanel(spot.id);
   }
@@ -291,8 +297,10 @@ export function EscapeApp() {
           <Dust burst={burst} />
           <div className="vignette" />
           {room.hotspots.map((hotspot) => {
+            if (hotspot.action === "take" && room.relic && state.inventory.includes(room.relic)) return null;
             const live = hotspotLive(hotspot, state) || (hotspot.action === "door" && canLeave(state));
             const above = hotspot.y > 64;
+            const showRelic = hotspot.action === "take" && live && room.relic;
             return (
               <button
                 key={hotspot.id}
@@ -303,7 +311,13 @@ export function EscapeApp() {
                 aria-label={hotspot.label}
                 onClick={() => onHotspot(hotspot)}
               >
-                {hotspot.action === "clue" && hotspot.clue ? <ClueThumb id={hotspot.clue} /> : <SpotThumb hotspot={hotspot} />}
+                {showRelic ? (
+                  <img src={ITEMS[room.relic!].art} alt="" className="clue-pin-photo" />
+                ) : hotspot.action === "clue" && hotspot.clue ? (
+                  <ClueThumb id={hotspot.clue} />
+                ) : (
+                  <SpotThumb hotspot={hotspot} />
+                )}
                 <span className="hotspot-label">{hotspot.label}</span>
               </button>
             );

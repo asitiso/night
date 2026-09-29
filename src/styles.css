@@ -1273,13 +1273,19 @@
 }
 .take-hero {
   display: grid;
-  height: 7.5rem;
+  min-height: 7.5rem;
   place-items: center;
+  overflow: hidden;
   border-radius: 1rem;
   background:
     radial-gradient(circle at 50% 45%, rgb(201 161 91 / 0.22), transparent 62%),
     var(--color-bg);
   color: var(--color-gold-2);
+}
+.take-photo {
+  width: 100%;
+  max-height: 16rem;
+  object-fit: cover;
 }
 .take-glyph {
   width: 4.5rem;
