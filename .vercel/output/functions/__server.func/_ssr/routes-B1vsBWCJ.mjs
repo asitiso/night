@@ -1,8 +1,8 @@
 import { i as __toESM } from "../_runtime.mjs";
 import { K as require_react, b as require_jsx_runtime } from "../_libs/@tanstack/react-router+[...].mjs";
-import { a as Sun, c as Menu, d as ChevronRight, f as ChevronLeft, l as Lightbulb, n as VolumeX, o as Star, p as BookOpen, r as Volume2, s as Moon, t as X, u as Cloud } from "../_libs/lucide-react.mjs";
-import { a as ITEM_IDS, i as ITEMS, n as ANCHORS, o as PUZZLES, r as CLUES, s as ROOMS } from "./router-DVgut7oE.mjs";
-//#region node_modules/.nitro/vite/services/ssr/assets/routes-RM2a8d_f.js
+import { a as Star, c as ChevronRight, l as ChevronLeft, n as VolumeX, o as Menu, r as Volume2, s as Lightbulb, t as X, u as BookOpen } from "../_libs/lucide-react.mjs";
+import { a as ITEM_IDS, i as ITEMS, n as ANCHORS, o as PUZZLES, r as CLUES, s as ROOMS } from "./router-DOG2TBHh.mjs";
+//#region node_modules/.nitro/vite/services/ssr/assets/routes-B1vsBWCJ.js
 var import_react = /* @__PURE__ */ __toESM(require_react());
 var import_jsx_runtime = require_jsx_runtime();
 var SAVE_KEY = "midnight-manor-v1";
@@ -13,7 +13,7 @@ function freshProgress() {
 	for (const puzzle of Object.values(PUZZLES)) {
 		solved[puzzle.id] = false;
 		if (puzzle.kind === "sequence") seq[puzzle.id] = [];
-		else dials[puzzle.id] = puzzle.solution.map(() => 0);
+		else if (puzzle.kind === "dials") dials[puzzle.id] = puzzle.solution.map(() => 0);
 	}
 	return {
 		seq,
@@ -52,10 +52,18 @@ function owns(state, id) {
 function heldItems(state) {
 	return ITEM_IDS.filter((id) => owns(state, id));
 }
+function locksClear(state, room = ROOMS[state.room]) {
+	if (!room) return false;
+	return room.locks.every((id) => state.solved[id]);
+}
+function lockCount(state, room = ROOMS[state.room]) {
+	if (!room) return 0;
+	return room.locks.filter((id) => state.solved[id]).length;
+}
 function canLeave(state) {
 	const room = ROOMS[state.room];
-	if (!room || room.gate === "finale" || !room.puzzle) return false;
-	if (!state.solved[room.puzzle]) return false;
+	if (!room || room.gate === "finale") return false;
+	if (!locksClear(state, room)) return false;
 	if (room.relic && !owns(state, room.relic)) return false;
 	return true;
 }
@@ -64,7 +72,8 @@ function hotspotLive(spot, state) {
 	if (!room) return false;
 	if (spot.action === "door") return canLeave(state);
 	if (spot.action === "finale") return !state.escaped;
-	if (spot.action === "take") return Boolean(room.relic && room.puzzle && state.solved[room.puzzle] && !owns(state, room.relic));
+	if (spot.action === "take") return Boolean(room.relic && locksClear(state, room) && !owns(state, room.relic));
+	if (spot.action === "puzzle" && spot.puzzle) return !state.solved[spot.puzzle];
 	if (spot.action === "clue" && spot.clue) return !state.clues.includes(spot.clue);
 	return false;
 }
@@ -232,7 +241,7 @@ function reduce(state, action) {
 			const item = action.item;
 			if (owns(state, item)) return say(state, "이미 가지고 있다.");
 			const room = ROOMS.find((entry) => entry.relic === item);
-			if (!room?.puzzle || !state.solved[room.puzzle]) return say(state, "아직 손이 닿지 않는다.", "fail");
+			if (!room || !locksClear(state, room)) return say(state, "아직 손이 닿지 않는다. 퍼즐 셋을 먼저.", "fail");
 			return say({
 				...state,
 				inventory: [...state.inventory, item]
@@ -301,6 +310,8 @@ function reduce(state, action) {
 				const name = ITEMS[missing[0] ?? "wax"].name;
 				return say(state, `아직 없다 — ${name}. 열 개의 방을 모두 지나야 한다.`, "fail");
 			}
+			const tower = ROOMS[ROOMS.length - 1];
+			if (tower && !locksClear(state, tower)) return say(state, `시계탑의 퍼즐 ${lockCount(state, tower)}/3. 셋을 풀어야 한다.`, "fail");
 			const placed = state.sockets.filter((slot) => slot !== null);
 			if (!ANCHORS.every((id) => placed.includes(id))) return say(state, "세 기둥 — 밀랍, 톱니, 에메랄드 — 이 홈에 있어야 한다.", "fail");
 			if (state.hour !== 12 || state.minute !== 0) return say(state, "아직 자정이 아니다.", "fail");
@@ -319,7 +330,7 @@ function reduce(state, action) {
 				state,
 				fx: null
 			};
-			if (roomDef.puzzle && !state.solved[roomDef.puzzle]) return say(state, roomDef.locked, "fail");
+			if (!locksClear(state, roomDef)) return say(state, `퍼즐 ${lockCount(state, roomDef)}/3. 셋을 풀어야 문이 열린다.`, "fail");
 			if (roomDef.relic && !owns(state, roomDef.relic)) return say(state, roomDef.needItem, "fail");
 			const room = state.room + 1;
 			const nextRoom = ROOMS[room];
@@ -347,6 +358,8 @@ function reduce(state, action) {
 				const back = state.sockets.filter((slot) => slot !== null);
 				const inventory = [...state.inventory];
 				for (const item of back) if (!inventory.includes(item)) inventory.push(item);
+				const solved = { ...state.solved };
+				for (const id of roomDef.locks) solved[id] = false;
 				return say({
 					...state,
 					sockets: [
@@ -356,36 +369,27 @@ function reduce(state, action) {
 					],
 					inventory,
 					hour: 11,
-					minute: 45
+					minute: 45,
+					solved
 				}, "시계탑의 장치를 되돌렸다.");
 			}
 			if (roomDef.relic && owns(state, roomDef.relic)) return say(state, "이미 끝난 장치는 되돌릴 수 없다.");
-			if (!roomDef.puzzle) return say(state, "되돌릴 장치가 없다.");
-			const puzzle = PUZZLES[roomDef.puzzle];
-			if (!puzzle) return {
-				state,
-				fx: null
-			};
-			const solved = {
-				...state.solved,
-				[puzzle.id]: false
-			};
-			if (puzzle.kind === "sequence") return say({
-				...state,
-				solved,
-				seq: {
-					...state.seq,
-					[puzzle.id]: []
-				}
-			}, "이 방의 장치를 되돌렸다.");
+			const solved = { ...state.solved };
+			const seq = { ...state.seq };
+			const dials = { ...state.dials };
+			for (const id of roomDef.locks) {
+				solved[id] = false;
+				const puzzle = PUZZLES[id];
+				if (!puzzle) continue;
+				if (puzzle.kind === "sequence") seq[id] = [];
+				if (puzzle.kind === "dials") dials[id] = puzzle.solution.map(() => 0);
+			}
 			return say({
 				...state,
 				solved,
-				dials: {
-					...state.dials,
-					[puzzle.id]: puzzle.solution.map(() => 0)
-				}
-			}, "이 방의 장치를 되돌렸다.");
+				seq,
+				dials
+			}, "이 방의 퍼즐을 되돌렸다.");
 		}
 		default: return {
 			state,
@@ -555,115 +559,115 @@ var windGain = null;
 var melodyFilter = null;
 var SCALE = [
 	0,
-	2,
+	1,
 	3,
 	5,
-	7,
+	6,
 	8,
 	10
 ];
 var PHRASE = [
 	0,
-	2,
-	4,
 	6,
-	4,
-	2,
+	0,
+	5,
+	0,
+	6,
+	1,
+	-1,
+	0,
 	3,
-	0,
-	5,
-	4,
-	2,
-	0,
-	4,
 	6,
+	0,
 	5,
+	1,
+	6,
 	-1
 ];
 var ROOTS = [
 	0,
-	4,
-	5,
-	4
+	6,
+	3,
+	5
 ];
 var MOODS = {
 	parlor: {
-		cutoff: 1500,
-		melody: .09,
-		clock: .03,
-		wind: .012,
-		fifth: false,
+		cutoff: 980,
+		melody: .11,
+		clock: .05,
+		wind: .02,
+		fifth: true,
 		drop: 0
 	},
 	library: {
-		cutoff: 1100,
-		melody: .075,
-		clock: .02,
-		wind: .008,
-		fifth: false,
+		cutoff: 820,
+		melody: .1,
+		clock: .045,
+		wind: .016,
+		fifth: true,
 		drop: 0
 	},
 	greenhouse: {
-		cutoff: 1900,
-		melody: .08,
-		clock: .015,
-		wind: .022,
-		fifth: false,
+		cutoff: 1100,
+		melody: .1,
+		clock: .04,
+		wind: .028,
+		fifth: true,
 		drop: 0
 	},
 	banquet: {
-		cutoff: 1300,
-		melody: .095,
-		clock: .025,
-		wind: .01,
-		fifth: false,
+		cutoff: 900,
+		melody: .11,
+		clock: .05,
+		wind: .018,
+		fifth: true,
 		drop: 0
 	},
 	gallery: {
-		cutoff: 1e3,
-		melody: .065,
-		clock: .018,
-		wind: .008,
-		fifth: false,
+		cutoff: 760,
+		melody: .09,
+		clock: .055,
+		wind: .014,
+		fifth: true,
 		drop: 0
 	},
 	bedroom: {
-		cutoff: 860,
-		melody: .055,
-		clock: .012,
-		wind: .006,
-		fifth: false,
-		drop: 0
+		cutoff: 680,
+		melody: .08,
+		clock: .04,
+		wind: .012,
+		fifth: true,
+		drop: -1
 	},
 	cellar: {
-		cutoff: 680,
-		melody: .07,
-		clock: .028,
-		wind: .02,
-		fifth: false,
+		cutoff: 560,
+		melody: .1,
+		clock: .06,
+		wind: .03,
+		fifth: true,
 		drop: -1
 	},
 	chapel: {
-		cutoff: 1700,
-		melody: .08,
-		clock: .016,
-		wind: .012,
+		cutoff: 1040,
+		melody: .1,
+		clock: .05,
+		wind: .02,
 		fifth: true,
 		drop: 0
 	},
 	vault: {
-		cutoff: 900,
-		melody: .06,
-		clock: .05,
-		wind: .008,
-		fifth: false,
-		drop: 0
+		cutoff: 640,
+		melody: .09,
+		clock: .08,
+		wind: .016,
+		fifth: true,
+		drop: -1
 	},
 	tower: {
-		cutoff: 1600,
-		melody: .09,
-		clock: .07,
-		wind: .014,
+		cutoff: 1200,
+		melody: .12,
+		clock: .09,
+		wind: .022,
 		fifth: true,
 		drop: 0
 	}
@@ -713,24 +717,32 @@ function clockTick(when) {
 		gain.disconnect();
 	};
 }
+function heartbeat(when) {
+	if (!music) return;
+	voice(49, when, .16, .42, "sine", music);
+	voice(42, when + .16, .2, .28, "sine", music);
+}
 function pump() {
 	if (!ctx || !melodyFilter || !music || !scoreLive()) return;
-	const horizon = ctx.currentTime + 1.4;
+	const horizon = ctx.currentTime + 1.2;
 	while (nextAt < horizon) {
 		const here = mood();
 		const index = PHRASE[step % PHRASE.length];
 		if (index >= 0) {
 			const freq = noteFreq(index, here.drop);
-			voice(freq, nextAt, 1.7, .55, "sine", melodyFilter);
-			voice(freq * 2, nextAt, 1.15, .12, "triangle", melodyFilter);
-			if (here.fifth) voice(freq * 1.5, nextAt + .03, 1.5, .22, "sine", melodyFilter);
+			voice(freq, nextAt, .72, .42, "triangle", melodyFilter);
+			voice(freq * 1.498, nextAt + .02, .55, .16, "sine", melodyFilter);
+			if (here.fifth) voice(freq * 1.059, nextAt, .4, .1, "sawtooth", melodyFilter);
 		}
-		if (step % 8 === 0) voice(noteFreq(ROOTS[step / 8 % ROOTS.length], -1), nextAt, 3.4, .22, "sine", music);
-		if (step % 8 === 4) clockTick(nextAt);
-		nextAt += here.drop < 0 ? .98 : .84;
+		if (step % 4 === 0) {
+			voice(noteFreq(ROOTS[step / 4 % ROOTS.length], -1), nextAt, 1.6, .2, "sine", music);
+			heartbeat(nextAt);
+		}
+		if (step % 2 === 0) clockTick(nextAt);
+		nextAt += here.drop < 0 ? .62 : .5;
 		step += 1;
 	}
-	window.setTimeout(pump, 360);
+	window.setTimeout(pump, 280);
 }
 function scoreLive() {
 	return droneOn;
@@ -775,23 +787,24 @@ function startDrone() {
 	drone.gain.value = .8;
 	const tremolo = ctx.createOscillator();
 	const tremoloDepth = ctx.createGain();
-	tremolo.frequency.value = .07;
-	tremoloDepth.gain.value = .12;
+	tremolo.frequency.value = 3.4;
+	tremoloDepth.gain.value = .22;
 	tremolo.connect(tremoloDepth);
 	tremoloDepth.connect(drone.gain);
 	tremolo.start();
 	drone.connect(music);
 	[
 		73.42,
+		77.78,
 		110,
-		174.61
+		155.56
 	].forEach((freq, index) => {
 		const osc = ctx.createOscillator();
 		const gain = ctx.createGain();
-		osc.type = "sine";
+		osc.type = index === 3 ? "sawtooth" : "sine";
 		osc.frequency.value = freq;
-		osc.detune.value = index === 1 ? 6 : -4;
-		gain.gain.value = index === 0 ? .045 : .026;
+		osc.detune.value = index === 1 ? 8 : -6;
+		gain.gain.value = index === 0 ? .05 : index === 3 ? .008 : .028;
 		osc.connect(gain);
 		gain.connect(drone);
 		osc.start();
@@ -1386,7 +1399,28 @@ var SPOT_SRC = {
 	glass: "/art/prop-glass.jpg",
 	altar: "/art/prop-altar.jpg",
 	vault: "/art/prop-dials.jpg",
-	coffer: "/art/prop-coffer.jpg"
+	coffer: "/art/prop-coffer.jpg",
+	"parlor-gaze": "/art/clue-portrait.jpg",
+	"parlor-hour": "/art/clue-clock.jpg",
+	"library-sky": "/art/prop-books.jpg",
+	"library-count": "/art/clue-note.jpg",
+	"green-false": "/art/clue-plaque.jpg",
+	"green-bloom": "/art/clue-orchids.jpg",
+	"banquet-last": "/art/clue-goblets.jpg",
+	"banquet-count": "/art/prop-candles.jpg",
+	"gallery-rule": "/art/prop-portraits.jpg",
+	"gallery-count": "/art/clue-portrait.jpg",
+	"bed-first": "/art/clue-moons.jpg",
+	"bed-count": "/art/prop-casket.jpg",
+	"cellar-measure": "/art/prop-casks.jpg",
+	"cellar-count": "/art/prop-candles.jpg",
+	"chapel-call": "/art/clue-glass.jpg",
+	"chapel-count": "/art/prop-glass.jpg",
+	"vault-places": "/art/prop-dials.jpg",
+	"vault-metal": "/art/prop-coffer.jpg",
+	"tower-marks": "/art/clue-gears.jpg",
+	"tower-hour": "/art/clue-clock.jpg",
+	"tower-pillars": "/art/prop-gate.jpg"
 };
 function SpotThumb({ hotspot }) {
 	const key = hotspot.action === "puzzle" ? hotspot.puzzle ?? hotspot.id : hotspot.action === "door" ? "door" : hotspot.action === "finale" ? "finale" : hotspot.id;
@@ -1557,12 +1591,6 @@ function RelicGlyph({ id, className }) {
 		default: return null;
 	}
 }
-var RING_ICON = [
-	Sun,
-	Moon,
-	Star,
-	Cloud
-];
 function Sheet({ title, onClose, children }) {
 	const closeRef = (0, import_react.useRef)(null);
 	(0, import_react.useEffect)(() => {
@@ -1603,6 +1631,11 @@ function Sheet({ title, onClose, children }) {
 	});
 }
 function PieceFace({ piece, on }) {
+	if (piece.art) return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+		src: piece.art,
+		alt: "",
+		className: `piece-photo${on ? " is-lit" : ""}`
+	});
 	if (piece.kind === "candle") return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
 		className: "candle-stage",
 		children: [
@@ -1667,13 +1700,12 @@ function SequenceSheet({ puzzle, state, dispatch }) {
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "spread",
 				children: puzzle.pieces.map((piece) => {
-					const on = solved || progress.includes(piece.id);
-					const book = piece.kind === "book";
+					const step = progress.indexOf(piece.id);
+					const on = solved || step >= 0;
+					const photo = Boolean(piece.art);
 					return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 						type: "button",
-						className: book ? on ? `book ${piece.tone} is-picked` : `book ${piece.tone}` : on ? `piece piece-${piece.kind} is-on` : `piece piece-${piece.kind}`,
-						"data-candle": piece.kind === "candle" ? piece.id : void 0,
-						"data-book": piece.kind === "book" ? piece.id : void 0,
+						className: photo ? `piece piece-photo-btn${on ? " is-on" : ""}` : piece.kind === "book" ? on ? `book ${piece.tone} is-picked` : `book ${piece.tone}` : on ? `piece piece-${piece.kind} is-on` : `piece piece-${piece.kind}`,
 						"data-piece": piece.id,
 						"aria-label": piece.label,
 						onClick: () => dispatch({
@@ -1681,13 +1713,20 @@ function SequenceSheet({ puzzle, state, dispatch }) {
 							puzzle: puzzle.id,
 							id: piece.id
 						}),
-						children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PieceFace, {
-							piece,
-							on
-						}), piece.kind === "candle" || piece.kind === "goblet" || piece.kind === "cask" || piece.kind === "glass" ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
-							className: "piece-label",
-							children: piece.label
-						}) : null]
+						children: [
+							on ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: "step-badge",
+								children: step + 1
+							}) : null,
+							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(PieceFace, {
+								piece,
+								on
+							}),
+							puzzle.quiet ? null : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+								className: "piece-label",
+								children: piece.label
+							})
+						]
 					}, piece.id);
 				})
 			}),
@@ -1706,6 +1745,11 @@ function DialSheet({ puzzle, state, dispatch }) {
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: "stack",
 		children: [
+			puzzle.image ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+				src: puzzle.image,
+				alt: "",
+				className: "puzzle-plate"
+			}) : null,
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 				className: "prose muted",
 				children: puzzle.prompt
@@ -1733,8 +1777,7 @@ function DialSheet({ puzzle, state, dispatch }) {
 						})
 					}, index);
 					const face = puzzle.faces[value] ?? puzzle.faces[0];
-					const Icon = RING_ICON[value] ?? Sun;
-					return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
+					return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 						type: "button",
 						className: turned === index ? "ring-btn is-turn" : "ring-btn",
 						"data-ring": index,
@@ -1747,13 +1790,17 @@ function DialSheet({ puzzle, state, dispatch }) {
 								index
 							});
 						},
-						children: /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("span", {
+						children: [face?.image ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+							src: face.image,
+							alt: "",
+							className: "ring-photo"
+						}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 							className: "ring-core",
-							children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Icon, {
-								className: "size-5",
-								"aria-hidden": true
-							}), face?.word]
-						})
+							children: face?.word
+						}), puzzle.quiet ? null : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+							className: "piece-label",
+							children: face?.word
+						})]
 					}, index);
 				})
 			}),
@@ -1783,14 +1830,18 @@ function TakeItem({ ready, owned, locked, readyText, item, dispatch }) {
 		children: [
 			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 				className: "take-hero",
-				children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RelicGlyph, {
+				children: ready || owned ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+					src: ITEMS[item].art,
+					alt: "",
+					className: "take-photo"
+				}) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(RelicGlyph, {
 					id: item,
 					className: "take-glyph"
 				})
 			}),
-			/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
+			owned ? null : /* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 				className: "prose",
-				children: owned ? "이미 비어 있다." : ready ? readyText : locked
+				children: ready ? readyText : locked
 			}),
 			ready && !owned ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", {
 				type: "button",
@@ -2166,7 +2217,7 @@ function RoomSheets({ panel, state, dispatch, onClose, onTitle, onReset }) {
 		const copy = TAKE_COPY[relic];
 		title = spot.label;
 		body = /* @__PURE__ */ (0, import_jsx_runtime.jsx)(TakeItem, {
-			ready: Boolean(room.puzzle && state.solved[room.puzzle]),
+			ready: Boolean(room && locksClear(state, room)),
 			owned: owns(state, relic),
 			locked: copy.locked,
 			readyText: copy.ready,
@@ -2228,11 +2279,13 @@ function EscapeApp() {
 		moved: false
 	});
 	const panMoved = (0, import_react.useRef)(false);
+	const closeTimer = (0, import_react.useRef)(0);
 	stateRef.current = state;
 	const room = ROOMS[state.room] ?? ROOMS[0];
 	(0, import_react.useEffect)(() => {
 		setState(loadState());
 		setHydrated(true);
+		return () => window.clearTimeout(closeTimer.current);
 	}, []);
 	(0, import_react.useEffect)(() => {
 		if (!hydrated) return;
@@ -2317,6 +2370,8 @@ function EscapeApp() {
 		if (result.fx === "success" || result.fx === "take") {
 			if (result.fx === "success") playSuccess();
 			else playTake();
+			window.clearTimeout(closeTimer.current);
+			closeTimer.current = window.setTimeout(() => setPanel(null), result.fx === "take" ? 280 : 520);
 			setBurst((value) => value + 1);
 		}
 		if (result.fx === "advance") {
@@ -2340,10 +2395,12 @@ function EscapeApp() {
 	}
 	function onHotspot(spot) {
 		if (curtainRef.current || panMoved.current) return;
+		window.clearTimeout(closeTimer.current);
 		if (spot.action === "door") {
 			dispatch({ type: "next" });
 			return;
 		}
+		if (spot.action === "take" && room?.relic && stateRef.current.inventory.includes(room.relic)) return;
 		if (spot.action === "clue" && spot.clue) dispatch({
 			type: "clue",
 			id: spot.clue
@@ -2392,6 +2449,7 @@ function EscapeApp() {
 	const line = state.line || room.intro;
 	const held = heldItems(state);
 	const hintCount = state.hints[state.room] ?? 0;
+	const solvedLocks = lockCount(state, room);
 	return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("div", {
 		className: "play-shell",
 		"data-screen": "play",
@@ -2467,8 +2525,10 @@ function EscapeApp() {
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)(Dust, { burst }),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className: "vignette" }),
 							room.hotspots.map((hotspot) => {
+								if (hotspot.action === "take" && room.relic && state.inventory.includes(room.relic)) return null;
 								const live = hotspotLive(hotspot, state) || hotspot.action === "door" && canLeave(state);
 								const above = hotspot.y > 64;
+								const showRelic = hotspot.action === "take" && live && room.relic;
 								return /* @__PURE__ */ (0, import_jsx_runtime.jsxs)("button", {
 									type: "button",
 									className: `hotspot hotspot-art${live ? " is-live" : ""}${above ? " hotspot-above" : ""}`,
@@ -2479,7 +2539,11 @@ function EscapeApp() {
 									"data-hotspot": hotspot.action === "puzzle" ? hotspot.puzzle : hotspot.action === "clue" ? hotspot.clue : hotspot.action,
 									"aria-label": hotspot.label,
 									onClick: () => onHotspot(hotspot),
-									children: [hotspot.action === "clue" && hotspot.clue ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ClueThumb, { id: hotspot.clue }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SpotThumb, { hotspot }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
+									children: [showRelic ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)("img", {
+										src: ITEMS[room.relic].art,
+										alt: "",
+										className: "clue-pin-photo"
+									}) : hotspot.action === "clue" && hotspot.clue ? /* @__PURE__ */ (0, import_jsx_runtime.jsx)(ClueThumb, { id: hotspot.clue }) : /* @__PURE__ */ (0, import_jsx_runtime.jsx)(SpotThumb, { hotspot }), /* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 										className: "hotspot-label",
 										children: hotspot.label
 									})]
@@ -2514,6 +2578,14 @@ function EscapeApp() {
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("p", {
 							className: "objective",
 							children: room.objective
+						}),
+						/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("p", {
+							className: "lock-count",
+							children: [
+								"퍼즐 ",
+								solvedLocks,
+								"/3"
+							]
 						}),
 						/* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", {
 							className: "trail",
@@ -2669,7 +2741,7 @@ function Title({ canContinue, sawEnding, onStart, onContinue, onReplay }) {
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 								className: "step-n",
 								children: "2"
-							}), "방마다 하나의 순서를 맞춘다"] }),
+							}), "방마다 퍼즐 셋을 푼다"] }),
 							/* @__PURE__ */ (0, import_jsx_runtime.jsxs)("li", { children: [/* @__PURE__ */ (0, import_jsx_runtime.jsx)("span", {
 								className: "step-n",
 								children: "3"
@@ -2687,6 +2759,7 @@ function Title({ canContinue, sawEnding, onStart, onContinue, onReplay }) {
 								type: "button",
 								className: "btn btn-gold",
 								"data-start": true,
+								"data-build": "20260929-2",
 								onClick: onStart,
 								children: "저택에 든다"
 							}),
