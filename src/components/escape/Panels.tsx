@@ -138,7 +138,6 @@ function SequenceSheet({
   const solved = Boolean(state.solved[puzzle.id]);
   return (
     <div className="stack">
-      {puzzle.image ? <img src={puzzle.image} alt="" className="puzzle-plate" /> : null}
       <p className="prose muted">{puzzle.prompt}</p>
       <div className="spread">
         {puzzle.pieces.map((piece) => {
@@ -166,7 +165,7 @@ function SequenceSheet({
             >
               {on ? <span className="step-badge">{step + 1}</span> : null}
               <PieceFace piece={piece} on={on} />
-              <span className="piece-label">{piece.label}</span>
+              {puzzle.quiet ? null : <span className="piece-label">{piece.label}</span>}
             </button>
           );
         })}
@@ -226,14 +225,8 @@ function DialSheet({
                 dispatch({ type: "dial", puzzle: puzzle.id, index });
               }}
             >
-              {face?.image ? (
-                <img src={face.image} alt="" className="ring-photo" />
-              ) : (
-                <span className="ring-core">
-                  {face?.word}
-                </span>
-              )}
-              <span className="piece-label">{face?.word}</span>
+              {face?.image ? <img src={face.image} alt="" className="ring-photo" /> : <span className="ring-core">{face?.word}</span>}
+              {puzzle.quiet ? null : <span className="piece-label">{face?.word}</span>}
             </button>
           );
         })}

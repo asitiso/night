@@ -188,60 +188,10 @@ function PlateMark({ plate }: { plate: CluePlate }) {
   return null;
 }
 
-const CLUE_STRIPS: Record<string, { src: string; label: string }[]> = {
-  letter: [
-    { src: "/art/piece-candle-short.jpg", label: "작은 초" },
-    { src: "/art/piece-candle-mid.jpg", label: "중간 초" },
-    { src: "/art/piece-candle-tall.jpg", label: "큰 초" },
-  ],
-  note: [
-    { src: "/art/piece-book-3.jpg", label: "별 셋" },
-    { src: "/art/piece-book-2.jpg", label: "별 둘" },
-    { src: "/art/piece-book-1.jpg", label: "별 하나" },
-    { src: "/art/piece-book-0.jpg", label: "별 없음" },
-  ],
-  plaque: [
-    { src: "/art/piece-sun.jpg", label: "해" },
-    { src: "/art/piece-moon-medal.jpg", label: "달" },
-    { src: "/art/piece-star.jpg", label: "별" },
-  ],
-  menu: [
-    { src: "/art/piece-goblet-wine.jpg", label: "포도주" },
-    { src: "/art/piece-goblet-ruby.jpg", label: "루비" },
-    { src: "/art/piece-goblet-rose.jpg", label: "장미빛" },
-    { src: "/art/piece-goblet-empty.jpg", label: "빈 잔" },
-  ],
-  diary: [
-    { src: "/art/piece-moon-new.jpg", label: "그믐" },
-    { src: "/art/piece-moon-crescent.jpg", label: "초승" },
-    { src: "/art/piece-moon-half.jpg", label: "반달" },
-    { src: "/art/piece-moon-full.jpg", label: "보름" },
-  ],
-  chalk: [
-    { src: "/art/piece-cask-7.jpg", label: "일곱" },
-    { src: "/art/piece-cask-5.jpg", label: "다섯" },
-    { src: "/art/piece-cask-3.jpg", label: "셋" },
-    { src: "/art/piece-cask-1.jpg", label: "하나" },
-  ],
-  hymn: [
-    { src: "/art/piece-glass-blood.jpg", label: "피" },
-    { src: "/art/piece-glass-gold.jpg", label: "황금" },
-    { src: "/art/piece-glass-sky.jpg", label: "하늘" },
-    { src: "/art/piece-glass-night.jpg", label: "어둠" },
-  ],
-  lineage: [
-    { src: "/art/piece-1642.jpg", label: "1642" },
-    { src: "/art/piece-1711.jpg", label: "1711" },
-    { src: "/art/piece-1830.jpg", label: "1830" },
-    { src: "/art/piece-1899.jpg", label: "1899" },
-  ],
-};
-
 export function ClueCard({ id }: { id: string }) {
   const clue = CLUES[id];
   if (!clue) return null;
-  const strip = CLUE_STRIPS[id];
-  const mark = strip ? null : PlateMark({ plate: clue.plate });
+  const mark = PlateMark({ plate: clue.plate });
   const showPhoto = Boolean(clue.image) && clue.plate !== "clock" && clue.plate !== "blankclock";
   return (
     <article className={`artifact plate-${clue.plate}`}>
@@ -252,16 +202,6 @@ export function ClueCard({ id }: { id: string }) {
         </div>
       ) : null}
       {mark ? <div className="artifact-mark">{mark}</div> : null}
-      {strip ? (
-        <div className="clue-strip" aria-hidden>
-          {strip.map((item) => (
-            <figure key={item.src}>
-              <img src={item.src} alt="" />
-              <figcaption>{item.label}</figcaption>
-            </figure>
-          ))}
-        </div>
-      ) : null}
       {clue.plate === "clock" && clue.image ? (
         <img src={clue.image} alt="" className="artifact-aside" />
       ) : null}
