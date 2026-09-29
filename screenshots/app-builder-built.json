@@ -1,0 +1,38 @@
+{
+  "url": "http://127.0.0.1:8081/",
+  "viewports": {
+    "desktop": {
+      "width": 1280,
+      "height": 800,
+      "status": 200,
+      "title": "심야의 저택",
+      "hasCanvas": false,
+      "bodyTextLen": 156,
+      "bodyTextHash": "59ee77e316ac4713398de6483147d87a50f3cf6d44a5efb5ced4fb8156f69daf",
+      "bodyTextPrefix": "MIDNIGHT MANOR 심야의 저택 눈이 떠진 곳은 잠긴 저택이다. 열 개의 방이 자정을 기다리고, 방마다 남긴",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built.png"
+    },
+    "mobile": {
+      "width": 390,
+      "height": 844,
+      "status": 200,
+      "title": "심야의 저택",
+      "hasCanvas": false,
+      "bodyTextLen": 156,
+      "bodyTextHash": "59ee77e316ac4713398de6483147d87a50f3cf6d44a5efb5ced4fb8156f69daf",
+      "bodyTextPrefix": "MIDNIGHT MANOR 심야의 저택 눈이 떠진 곳은 잠긴 저택이다. 열 개의 방이 자정을 기다리고, 방마다 남긴",
+      "horizontalOverflow": false,
+      "consoleErrors": [],
+      "pageErrors": [],
+      "screenshot": "/workspace/screenshots/app-builder-built-mobile.png"
+    }
+  },
+  "brandWarnings": [],
+  "authWarnings": [],
+  "verdictFile": "/workspace/screenshots/app-builder-built.json",
+  "divergesFromBaseline": false,
+  "baselineReasons": []
+}
