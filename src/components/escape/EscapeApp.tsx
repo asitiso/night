@@ -462,7 +462,7 @@ function Title({
           </li>
         </ol>
         <div className="title-actions">
-          <button type="button" className="btn btn-gold" data-start onClick={onStart}>
+          <button type="button" className="btn btn-gold" data-start data-build="20260929-2" onClick={onStart}>
             저택에 든다
           </button>
           {canContinue ? (
