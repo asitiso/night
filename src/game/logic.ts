@@ -60,7 +60,7 @@ export function freshProgress(): Pick<GameState, "seq" | "solved" | "dials" | "h
   for (const puzzle of Object.values(PUZZLES)) {
     solved[puzzle.id] = false;
     if (puzzle.kind === "sequence") seq[puzzle.id] = [];
-    else dials[puzzle.id] = puzzle.solution.map(() => 0);
+    else if (puzzle.kind === "dials") dials[puzzle.id] = puzzle.solution.map(() => 0);
   }
   return { seq, solved, dials, hints: ROOMS.map(() => 0) };
 }
@@ -96,10 +96,20 @@ export function heldItems(state: GameState): ItemId[] {
   return ITEM_IDS.filter((id) => owns(state, id));
 }
 
+export function locksClear(state: GameState, room = ROOMS[state.room]): boolean {
+  if (!room) return false;
+  return room.locks.every((id) => state.solved[id]);
+}
+
+export function lockCount(state: GameState, room = ROOMS[state.room]): number {
+  if (!room) return 0;
+  return room.locks.filter((id) => state.solved[id]).length;
+}
+
 export function canLeave(state: GameState): boolean {
   const room = ROOMS[state.room];
-  if (!room || room.gate === "finale" || !room.puzzle) return false;
-  if (!state.solved[room.puzzle]) return false;
+  if (!room || room.gate === "finale") return false;
+  if (!locksClear(state, room)) return false;
   if (room.relic && !owns(state, room.relic)) return false;
   return true;
 }
@@ -110,8 +120,9 @@ export function hotspotLive(spot: Hotspot, state: GameState): boolean {
   if (spot.action === "door") return canLeave(state);
   if (spot.action === "finale") return !state.escaped;
   if (spot.action === "take") {
-    return Boolean(room.relic && room.puzzle && state.solved[room.puzzle] && !owns(state, room.relic));
+    return Boolean(room.relic && locksClear(state, room) && !owns(state, room.relic));
   }
+  if (spot.action === "puzzle" && spot.puzzle) return !state.solved[spot.puzzle];
   if (spot.action === "clue" && spot.clue) return !state.clues.includes(spot.clue);
   return false;
 }
@@ -215,7 +226,7 @@ export function reduce(state: GameState, action: Action): { state: GameState; fx
       const item = action.item;
       if (owns(state, item)) return say(state, "이미 가지고 있다.");
       const room = ROOMS.find((entry) => entry.relic === item);
-      if (!room?.puzzle || !state.solved[room.puzzle]) return say(state, "아직 손이 닿지 않는다.", "fail");
+      if (!room || !locksClear(state, room)) return say(state, "아직 손이 닿지 않는다. 퍼즐 셋을 먼저.", "fail");
       return say(
         { ...state, inventory: [...state.inventory, item] },
         ITEMS[item].take,
@@ -268,6 +279,10 @@ export function reduce(state: GameState, action: Action): { state: GameState; fx
         const name = ITEMS[missing[0] ?? "wax"].name;
         return say(state, `아직 없다 — ${name}. 열 개의 방을 모두 지나야 한다.`, "fail");
       }
+      const tower = ROOMS[ROOMS.length - 1];
+      if (tower && !locksClear(state, tower)) {
+        return say(state, `시계탑의 퍼즐 ${lockCount(state, tower)}/3. 셋을 풀어야 한다.`, "fail");
+      }
       const placed = state.sockets.filter((slot): slot is ItemId => slot !== null);
       if (!ANCHORS.every((id) => placed.includes(id))) {
         return say(state, "세 기둥 — 밀랍, 톱니, 에메랄드 — 이 홈에 있어야 한다.", "fail");
@@ -285,8 +300,8 @@ export function reduce(state: GameState, action: Action): { state: GameState; fx
     case "next": {
       const roomDef = ROOMS[state.room];
       if (!roomDef || roomDef.gate === "finale") return { state, fx: null };
-      if (roomDef.puzzle && !state.solved[roomDef.puzzle]) {
-        return say(state, roomDef.locked, "fail");
+      if (!locksClear(state, roomDef)) {
+        return say(state, `퍼즐 ${lockCount(state, roomDef)}/3. 셋을 풀어야 문이 열린다.`, "fail");
       }
       if (roomDef.relic && !owns(state, roomDef.relic)) {
         return say(state, roomDef.needItem, "fail");
@@ -307,32 +322,27 @@ export function reduce(state: GameState, action: Action): { state: GameState; fx
         for (const item of back) {
           if (!inventory.includes(item)) inventory.push(item);
         }
+        const solved = { ...state.solved };
+        for (const id of roomDef.locks) solved[id] = false;
         return say(
-          { ...state, sockets: [null, null, null], inventory, hour: 11, minute: 45 },
+          { ...state, sockets: [null, null, null], inventory, hour: 11, minute: 45, solved },
           "시계탑의 장치를 되돌렸다.",
         );
       }
       if (roomDef.relic && owns(state, roomDef.relic)) {
         return say(state, "이미 끝난 장치는 되돌릴 수 없다.");
       }
-      if (!roomDef.puzzle) return say(state, "되돌릴 장치가 없다.");
-      const puzzle = PUZZLES[roomDef.puzzle];
-      if (!puzzle) return { state, fx: null };
-      const solved = { ...state.solved, [puzzle.id]: false };
-      if (puzzle.kind === "sequence") {
-        return say(
-          { ...state, solved, seq: { ...state.seq, [puzzle.id]: [] } },
-          "이 방의 장치를 되돌렸다.",
-        );
+      const solved = { ...state.solved };
+      const seq = { ...state.seq };
+      const dials = { ...state.dials };
+      for (const id of roomDef.locks) {
+        solved[id] = false;
+        const puzzle = PUZZLES[id];
+        if (!puzzle) continue;
+        if (puzzle.kind === "sequence") seq[id] = [];
+        if (puzzle.kind === "dials") dials[id] = puzzle.solution.map(() => 0);
       }
-      return say(
-        {
-          ...state,
-          solved,
-          dials: { ...state.dials, [puzzle.id]: puzzle.solution.map(() => 0) },
-        },
-        "이 방의 장치를 되돌렸다.",
-      );
+      return say({ ...state, solved, seq, dials }, "이 방의 퍼즐을 되돌렸다.");
     }
     default:
       return { state, fx: null };

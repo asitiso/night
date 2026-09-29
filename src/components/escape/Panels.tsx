@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight, Cloud, Moon, Star, Sun, X } from "lucide-react";
+import { ChevronLeft, ChevronRight, Star, X } from "lucide-react";
 import {
   ANCHORS,
   CLUES,
@@ -12,11 +12,9 @@ import {
   type Piece,
   type SequencePuzzle,
 } from "@/game/content";
-import { owns, type Action, type GameState } from "@/game/logic";
+import { locksClear, owns, type Action, type GameState } from "@/game/logic";
 import { ClueCard, ClockFace } from "@/components/escape/ClueArt";
 import { RelicGlyph } from "@/components/escape/Relics";
-
-const RING_ICON = [Sun, Moon, Star, Cloud] as const;
 
 type Dispatch = (action: Action) => void;
 
@@ -65,6 +63,9 @@ function Sheet({
 }
 
 function PieceFace({ piece, on }: { piece: Piece; on: boolean }) {
+  if (piece.art) {
+    return <img src={piece.art} alt="" className={`piece-photo${on ? " is-lit" : ""}`} />;
+  }
   if (piece.kind === "candle") {
     return (
       <span className="candle-stage">
@@ -137,41 +138,40 @@ function SequenceSheet({
   const solved = Boolean(state.solved[puzzle.id]);
   return (
     <div className="stack">
+      {puzzle.image ? <img src={puzzle.image} alt="" className="puzzle-plate" /> : null}
       <p className="prose muted">{puzzle.prompt}</p>
       <div className="spread">
         {puzzle.pieces.map((piece) => {
-          const on = solved || progress.includes(piece.id);
-          const book = piece.kind === "book";
+          const step = progress.indexOf(piece.id);
+          const on = solved || step >= 0;
+          const photo = Boolean(piece.art);
           return (
             <button
               key={piece.id}
               type="button"
               className={
-                book
-                  ? on
-                    ? `book ${piece.tone} is-picked`
-                    : `book ${piece.tone}`
-                  : on
-                    ? `piece piece-${piece.kind} is-on`
-                    : `piece piece-${piece.kind}`
+                photo
+                  ? `piece piece-photo-btn${on ? " is-on" : ""}`
+                  : piece.kind === "book"
+                    ? on
+                      ? `book ${piece.tone} is-picked`
+                      : `book ${piece.tone}`
+                    : on
+                      ? `piece piece-${piece.kind} is-on`
+                      : `piece piece-${piece.kind}`
               }
-              data-candle={piece.kind === "candle" ? piece.id : undefined}
-              data-book={piece.kind === "book" ? piece.id : undefined}
               data-piece={piece.id}
               aria-label={piece.label}
               onClick={() => dispatch({ type: "seq", puzzle: puzzle.id, id: piece.id })}
             >
+              {on ? <span className="step-badge">{step + 1}</span> : null}
               <PieceFace piece={piece} on={on} />
-              {piece.kind === "candle" || piece.kind === "goblet" || piece.kind === "cask" || piece.kind === "glass" ? (
-                <span className="piece-label">{piece.label}</span>
-              ) : null}
+              <span className="piece-label">{piece.label}</span>
             </button>
           );
         })}
       </div>
-      <p className="prose">
-        {solved ? puzzle.success : `${progress.length} / ${puzzle.order.length}`}
-      </p>
+      <p className="prose">{solved ? puzzle.success : `${progress.length} / ${puzzle.order.length}`}</p>
     </div>
   );
 }
@@ -191,6 +191,7 @@ function DialSheet({
   const numeric = puzzle.faces.length === 0;
   return (
     <div className="stack">
+      {puzzle.image ? <img src={puzzle.image} alt="" className="puzzle-plate" /> : null}
       <p className="prose muted">{puzzle.prompt}</p>
       <div className="spread">
         {puzzle.solution.map((_, index) => {
@@ -213,7 +214,6 @@ function DialSheet({
             );
           }
           const face = puzzle.faces[value] ?? puzzle.faces[0];
-          const Icon = RING_ICON[value] ?? Sun;
           return (
             <button
               key={index}
@@ -226,10 +226,14 @@ function DialSheet({
                 dispatch({ type: "dial", puzzle: puzzle.id, index });
               }}
             >
-              <span className="ring-core">
-                <Icon className="size-5" aria-hidden />
-                {face?.word}
-              </span>
+              {face?.image ? (
+                <img src={face.image} alt="" className="ring-photo" />
+              ) : (
+                <span className="ring-core">
+                  {face?.word}
+                </span>
+              )}
+              <span className="piece-label">{face?.word}</span>
             </button>
           );
         })}
@@ -546,7 +550,7 @@ export function RoomSheets({
     title = spot.label;
     body = (
       <TakeItem
-        ready={Boolean(room.puzzle && state.solved[room.puzzle])}
+        ready={Boolean(room && locksClear(state, room))}
         owned={owns(state, relic)}
         locked={copy.locked}
         readyText={copy.ready}

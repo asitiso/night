@@ -5,6 +5,7 @@ import {
   canLeave,
   heldItems,
   hotspotLive,
+  lockCount,
   INITIAL,
   loadState,
   reduce,
@@ -226,6 +227,7 @@ export function EscapeApp() {
   const line = state.line || room.intro;
   const held = heldItems(state);
   const hintCount = state.hints[state.room] ?? 0;
+  const solvedLocks = lockCount(state, room);
 
   return (
     <div className="play-shell" data-screen="play" data-room={room.id}>
@@ -301,11 +303,7 @@ export function EscapeApp() {
                 aria-label={hotspot.label}
                 onClick={() => onHotspot(hotspot)}
               >
-                {hotspot.action === "clue" && hotspot.clue ? (
-                  <ClueThumb id={hotspot.clue} />
-                ) : (
-                  <SpotThumb hotspot={hotspot} />
-                )}
+                {hotspot.action === "clue" && hotspot.clue ? <ClueThumb id={hotspot.clue} /> : <SpotThumb hotspot={hotspot} />}
                 <span className="hotspot-label">{hotspot.label}</span>
               </button>
             );
@@ -324,6 +322,7 @@ export function EscapeApp() {
           </p>
           <h1 className="room-name font-display font-semibold">{room.name}</h1>
           <p className="objective">{room.objective}</p>
+          <p className="lock-count">퍼즐 {solvedLocks}/3</p>
           <div className="trail" aria-hidden>
             <span style={{ width: `${((state.room + 1) / ROOMS.length) * 100}%` }} />
           </div>
@@ -439,7 +438,7 @@ function Title({
             <span className="step-n">1</span>방 안의 그림을 눌러 살핀다
           </li>
           <li>
-            <span className="step-n">2</span>방마다 하나의 순서를 맞춘다
+            <span className="step-n">2</span>방마다 퍼즐 셋을 푼다
           </li>
           <li>
             <span className="step-n">3</span>표식을 챙겨 다음 문으로
